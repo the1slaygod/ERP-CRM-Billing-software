@@ -1,0 +1,404 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Enums
+enum Role {
+  ADMIN
+  SALES
+  ACCOUNTS
+  INVENTORY
+}
+
+enum LeadStatus {
+  NEW_LEAD
+  CONTACTED
+  QUALIFIED
+  QUOTATION_SENT
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum CustomerType {
+  B2B
+  B2C
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FINALIZED
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+// User & Auth
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(SALES)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks      Task[]
+  activities Activity[]
+}
+
+// CRM Entities
+model Customer {
+  id              String   @id @default(cuid())
+  name            String
+  company         String?
+  phone           String?
+  whatsapp        String?
+  whatsappOptIn   Boolean   @default(false)
+  whatsappOptInDate DateTime?
+  whatsappOptOut  Boolean   @default(false)
+  email           String?   @unique
+  gstin           String?
+  pan             String?
+  billingAddress  String?
+  shippingAddress String?
+  state           String?
+  pincode         String?
+  type            CustomerType @default(B2B)
+  paymentTerms    String?
+  creditLimit     Float    @default(0)
+  notes           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads         Lead[]
+  contacts      Contact[]
+  quotations    Quotation[]
+  salesOrders   SalesOrder[]
+  invoices      Invoice[]
+  payments      Payment[]
+  ledgerEntries LedgerEntry[]
+  tasks         Task[]
+  activities    Activity[]
+}
+
+model Contact {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  name       String
+  phone      String?
+  email      String?
+  role       String?
+}
+
+model Lead {
+  id              String    @id @default(cuid())
+  name            String
+  company         String?
+  phone           String?
+  email           String?
+  productInterest String?
+  source          String?
+  dealValue       Float?
+  probability     Int?
+  expectedClose   DateTime?
+  assignedTo      String?
+  priority        String?
+  status          LeadStatus @default(NEW_LEAD)
+  nextFollowUp    DateTime?
+  notes           String?
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tasks      Task[]
+  activities Activity[]
+}
+
+// Inventory & Products
+model Product {
+  id           String   @id @default(cuid())
+  name         String
+  sku          String   @unique
+  code         String?
+  category     String?
+  description  String?
+  hsnSac       String?
+  gstPercent   Float    @default(0)
+  costPrice    Float    @default(0)
+  sellingPrice Float    @default(0)
+  discount     Float    @default(0)
+  unit         String   @default("pcs")
+  openingStock Int      @default(0)
+  currentStock Int      @default(0)
+  reorderLevel Int      @default(0)
+  imageUrl     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quotationItems   QuotationItem[]
+  salesOrderItems  SalesOrderItem[]
+  invoiceItems     InvoiceItem[]
+  inventoryTrans   InventoryTransaction[]
+}
+
+// Sales & Billing
+model Quotation {
+  id         String   @id @default(cuid())
+  number     String   @unique
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  
+  validUntil DateTime?
+  subtotal   Float
+  discount   Float    @default(0)
+  taxableValue Float  @default(0)
+  cgst       Float    @default(0)
+  sgst       Float    @default(0)
+  igst       Float    @default(0)
+  roundOff   Float    @default(0)
+  grandTotal Float
+
+  status     String   @default("DRAFT") // DRAFT, SENT, VIEWED, ACCEPTED, REJECTED, EXPIRED
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  
+  items       QuotationItem[]
+  salesOrders SalesOrder[]
+}
+
+model QuotationItem {
+  id           String    @id @default(cuid())
+  quotationId  String
+  quotation    Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product   @relation(fields: [productId], references: [id])
+  
+  quantity     Int
+  unit         String
+  rate         Float
+  discount     Float     @default(0)
+  taxableValue Float
+  cgst         Float     @default(0)
+  sgst         Float     @default(0)
+  igst         Float     @default(0)
+  total        Float
+}
+
+model SalesOrder {
+  id          String    @id @default(cuid())
+  number      String    @unique
+  customerId  String
+  customer    Customer  @relation(fields: [customerId], references: [id])
+  quotationId String?
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+  
+  date        DateTime  @default(now())
+  subtotal    Float     @default(0)
+  discount    Float     @default(0)
+  taxableValue Float    @default(0)
+  cgst        Float     @default(0)
+  sgst        Float     @default(0)
+  igst        Float     @default(0)
+  roundOff    Float     @default(0)
+  grandTotal  Float     @default(0)
+
+  status       String    @default("DRAFT") // DRAFT, CONFIRMED, PROCESSING, DISPATCHED, COMPLETED, CANCELLED
+  deliveryDate DateTime?
+  notes        String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  items    SalesOrderItem[]
+  invoices Invoice[]
+}
+
+model SalesOrderItem {
+  id           String     @id @default(cuid())
+  salesOrderId String
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product    @relation(fields: [productId], references: [id])
+  
+  quantity     Int
+  unit         String     @default("pcs")
+  rate         Float      @default(0)
+  discount     Float      @default(0)
+  taxableValue Float      @default(0)
+  cgst         Float      @default(0)
+  sgst         Float      @default(0)
+  igst         Float      @default(0)
+  total        Float      @default(0)
+}
+
+model Invoice {
+  id            String      @id @default(cuid())
+  number        String      @unique
+  date          DateTime    @default(now())
+  customerId    String
+  customer      Customer    @relation(fields: [customerId], references: [id])
+  salesOrderId  String?
+  salesOrder    SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  
+  placeOfSupply String?
+  subtotal      Float
+  discount      Float       @default(0)
+  taxableValue  Float
+  cgst          Float       @default(0)
+  sgst          Float       @default(0)
+  igst          Float       @default(0)
+  roundOff      Float       @default(0)
+  grandTotal    Float
+  
+  status        InvoiceStatus @default(DRAFT)
+  type          String      @default("GST") // GST, NON_GST
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  items    InvoiceItem[]
+  payments Payment[]
+}
+
+model InvoiceItem {
+  id           String  @id @default(cuid())
+  invoiceId    String
+  invoice      Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId    String
+  product      Product @relation(fields: [productId], references: [id])
+  
+  quantity     Int
+  unit         String
+  rate         Float
+  discount     Float   @default(0)
+  taxableValue Float
+  cgst         Float   @default(0)
+  sgst         Float   @default(0)
+  igst         Float   @default(0)
+  total        Float
+}
+
+model Payment {
+  id         String   @id @default(cuid())
+  date       DateTime @default(now())
+  amount     Float
+  invoiceId  String?
+  invoice    Invoice? @relation(fields: [invoiceId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  
+  method    String // CASH, UPI, BANK_TRANSFER, CHEQUE, CARD, OTHER
+  reference String?
+  notes     String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LedgerEntry {
+  id          String   @id @default(cuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  type        String // DEBIT, CREDIT
+  amount      Float
+  referenceId String? // Invoice ID or Payment ID
+  description String?
+  date        DateTime @default(now())
+  
+  createdAt DateTime @default(now())
+}
+
+model InventoryTransaction {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  type      String // STOCK_IN, STOCK_OUT, ADJUSTMENT
+  quantity  Int
+  reference String? // Invoice ID, PO ID, etc.
+  date      DateTime @default(now())
+}
+
+// Communication & Tasks
+model Task {
+  id         String    @id @default(cuid())
+  title      String
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  leadId     String?
+  lead       Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  assignedTo String?
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  
+  dueDate  DateTime?
+  priority String    @default("MEDIUM")
+  status   String    @default("TODO") // TODO, IN_PROGRESS, COMPLETED, OVERDUE
+  notes    String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Activity {
+  id         String    @id @default(cuid())
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  leadId     String?
+  lead       Lead?     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?     @relation(fields: [userId], references: [id])
+  
+  type        String // CALL, EMAIL, WHATSAPP, NOTE, MEETING, SYSTEM
+  title       String
+  description String?
+  outcome     String?
+  date        DateTime @default(now())
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  title         String
+  category      String
+  amount        Float
+  date          DateTime @default(now())
+  vendor        String?
+  paymentMethod String?
+  notes         String?
+  attachmentUrl String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CompanySettings {
+  id            String   @id @default(cuid())
+  companyName   String
+  logoBase64    String?  @db.Text
+  address       String?
+  phone         String?
+  email         String?
+  gstin         String?
+  pan           String?
+  bankName      String?
+  accountNumber String?
+  ifscCode      String?
+  terms         String?  @db.Text
+  updatedAt     DateTime @updatedAt
+}
