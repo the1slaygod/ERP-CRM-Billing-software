@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { isDatabaseConfigured, prisma } from "@/lib/prisma";
 import { LeadKanban } from "@/components/crm/LeadKanban";
 import { Plus } from "lucide-react";
 import { createLead } from "@/app/actions/lead";
@@ -9,16 +9,18 @@ export default async function LeadsPage() {
     await createLead(formData);
   };
 
-  const leads = await prisma.lead.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
-      id: true,
-      name: true,
-      company: true,
-      dealValue: true,
-      status: true,
-    }
-  });
+  const leads = isDatabaseConfigured
+    ? await prisma.lead.findMany({
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          company: true,
+          dealValue: true,
+          status: true,
+        },
+      })
+    : [];
 
   return (
     <div className="space-y-6 flex flex-col h-[calc(100vh-6rem)]">
