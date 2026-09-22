@@ -1,32 +1,46 @@
-import { prisma } from "@/lib/prisma";
+import { isDatabaseConfigured, prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { Users, FileText, ArrowUpRight, TrendingUp, AlertCircle, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+async function getDashboardData() {
+  const [totalCustomers, invoices, allInvoices, products] = await Promise.all([
+    prisma.customer.count(),
+    prisma.invoice.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { customer: true },
+    }),
+    prisma.invoice.findMany({
+      select: { grandTotal: true, status: true },
+    }),
+    prisma.product.findMany({
+      select: { currentStock: true, reorderLevel: true },
+    }),
+  ]);
+
+  return {
+    totalCustomers,
+    invoices,
+    totalRevenue: allInvoices.reduce((acc, invoice) => acc + invoice.grandTotal, 0),
+    outstandingReceivables: allInvoices
+      .filter((invoice) => invoice.status === "UNPAID")
+      .reduce((acc, invoice) => acc + invoice.grandTotal, 0),
+    lowStockCount: products.filter((product) => product.currentStock <= product.reorderLevel).length,
+  };
+}
+
 export default async function DashboardPage() {
-  // Fetch real data from the database
-  const totalCustomers = await prisma.customer.count();
-  
-  const invoices = await prisma.invoice.findMany({
-    orderBy: { createdAt: "desc" },
-    take: 5,
-    include: { customer: true }
-  });
-
-  const allInvoices = await prisma.invoice.findMany({
-    select: { grandTotal: true, status: true }
-  });
-
-  const totalRevenue = allInvoices.reduce((acc, inv) => acc + inv.grandTotal, 0);
-  const outstandingReceivables = allInvoices
-    .filter(inv => inv.status === 'UNPAID')
-    .reduce((acc, inv) => acc + inv.grandTotal, 0);
-
-  const products = await prisma.product.findMany({
-    select: { currentStock: true, reorderLevel: true }
-  });
-  
-  const lowStockCount = products.filter(p => p.currentStock <= p.reorderLevel).length;
+  const { totalCustomers, invoices, totalRevenue, outstandingReceivables, lowStockCount } =
+    isDatabaseConfigured
+      ? await getDashboardData()
+      : {
+          totalCustomers: 0,
+          invoices: [],
+          totalRevenue: 0,
+          outstandingReceivables: 0,
+          lowStockCount: 0,
+        };
 
   return (
     <div className="space-y-6">
