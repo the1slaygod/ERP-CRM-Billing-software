@@ -169,6 +169,11 @@ export default function CompanySettingsPage() {
                 <input defaultValue={settings.ifscCode || ""} name="ifscCode" className="w-full rounded-md border-0 py-2 pl-3 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm uppercase" />
               </div>
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">UPI ID</label>
+              <input defaultValue={settings.upiId || ""} name="upiId" className="w-full rounded-md border-0 py-2 pl-3 text-gray-900 ring-1 ring-inset ring-gray-300 focus:ring-2 focus:ring-indigo-600 sm:text-sm" placeholder="merchant@upi" />
+              <p className="text-xs text-gray-500">Used to generate dynamic QR codes on invoices.</p>
+            </div>
           </CardContent>
         </Card>
 

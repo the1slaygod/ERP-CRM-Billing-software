@@ -30,6 +30,7 @@ export async function updateCompanySettings(formData: FormData) {
     const bankName = formData.get("bankName") as string | null;
     const accountNumber = formData.get("accountNumber") as string | null;
     const ifscCode = formData.get("ifscCode") as string | null;
+    const upiId = formData.get("upiId") as string | null;
     const terms = formData.get("terms") as string | null;
 
     if (!id) {
@@ -46,6 +47,7 @@ export async function updateCompanySettings(formData: FormData) {
       bankName,
       accountNumber,
       ifscCode,
+      upiId,
       terms
     };
 

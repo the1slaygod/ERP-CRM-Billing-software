@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 import { Toaster } from "sonner";
+import { CopilotChatbot } from "@/components/ai/CopilotChatbot";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {children}
         <Toaster richColors position="top-right" />
+        <CopilotChatbot />
       </body>
     </html>
   );

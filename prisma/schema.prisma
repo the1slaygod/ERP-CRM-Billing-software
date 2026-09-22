@@ -399,6 +399,7 @@ model CompanySettings {
   bankName      String?
   accountNumber String?
   ifscCode      String?
+  upiId         String?
   terms         String?  @db.Text
   updatedAt     DateTime @updatedAt
 }
